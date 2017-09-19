@@ -1,8 +1,8 @@
 <STYLE>
 BODY, TABLE, TD, TH, P {
-  font-family:Verdana,Helvetica,sans serif;
-  font-size:11px;
-  color:black;
+    font-family:Verdana,Helvetica,sans serif;
+    font-size:11px;
+    color:black;
 }
 h1 { color:black; }
 h2 { color:black; }
@@ -16,103 +16,140 @@ TD.console { font-family:Courier New; }
 </STYLE>
 <BODY>
 
+<%
+    // http://javadoc.jenkins-ci.org/hudson/model/AbstractBuild.html
+    //def build = Thread.currentThread().executable
+    def workspace = build.getEnvVars()["WORKSPACE"]
+    def buildName = build.getEnvVars()["JOB_NAME"]
+    def buildUrl = build.getEnvVars()["BUILD_URL"]
+    def buildNum = build.getEnvVars()["BUILD_NUMBER"]
+    def jenkinsHome = build.getEnvVars()["JENKINS_HOME"]
+    def jobPath = jenkinsHome + "/jobs/" + buildName + "/builds/" + buildNum
+    def archivePath = jobPath + "/archive"
+    def logcatPath = archivePath + "/logcat.txt"
+
+    File logcatFile = new File(logcatPath)
+    def logcatTxt = logcatFile.text;
+%>
+
+<table border="1">
+    <tr>
+        <td>var name</td><td>value</td>
+    </tr>
+    <tr>
+        <td>build</td><td>${build}</td>
+    </tr>
+    <tr>
+        <td>jobPath</td><td>${jobPath}</td>
+    </tr>
+    <tr>
+        <td>archivePath</td><td>${archivePath}</td>
+    </tr>
+    <tr>
+        <td>logcatTxt</td><td>${logcatTxt}</td>
+    </tr>
+</table>
+
+
+
 <TABLE>
-  <TR><TD align="right"><IMG SRC="${rooturl}static/e59dfe28/images/32x32/<%= (build.result == null || build.result.toString() == 'SUCCESS') ? "blue.gif" : build.result.toString() == 'FAILURE' ? 'red.gif' : 'yellow.gif' %>" />
-  </TD><TD valign="center"><B style="font-size: 200%;">BUILD ${build.result ?: 'SUCCESSFUL'}</B></TD></TR>
-  <TR><TD>URL</TD><TD><A href="${rooturl}${build.url}">${rooturl}${build.url}</A></TD></TR>
-  <TR><TD>Project:</TD><TD>${project.name}</TD></TR>
-  <TR><TD>Date:</TD><TD>${it.timestampString}</TD></TR>
-  <TR><TD>Duration:</TD><TD>${build.durationString}</TD></TR>
-  <TR><TD>Cause:</TD><TD><% build.causes.each() { cause -> %> ${cause.shortDescription} <%  } %></TD></TR>
+    <TR><TD align="right"><IMG SRC="${rooturl}static/e59dfe28/images/32x32/<%= (build.result == null || build.result.toString() == 'SUCCESS') ? "blue.gif" : build.result.toString() == 'FAILURE' ? 'red.gif' : 'yellow.gif' %>" />
+    </TD><TD valign="center"><B style="font-size: 200%;">BUILD ${build.result ?: 'SUCCESSFUL'}</B></TD></TR>
+    <TR><TD>URL</TD><TD><A href="${rooturl}${build.url}">${rooturl}${build.url}</A></TD></TR>
+    <TR><TD>Project:</TD><TD>${project.name}</TD></TR>
+    <TR><TD>Date:</TD><TD>${it.timestampString}</TD></TR>
+    <TR><TD>Duration:</TD><TD>${build.durationString}</TD></TR>
+    <TR><TD>Cause:</TD><TD><% build.causes.each() { cause -> %> ${cause.shortDescription} <%  } %></TD></TR>
 </TABLE>
 <BR/>
 
 <!-- CHANGE SET -->
-<% def changeSets = build.changeSets
-if(changeSets != null) {
-	def hadChanges = false %>
-	<TABLE width="100%">
+<%
+    def changeSets = build.changeSets
+    if(changeSets != null) {
+        def hadChanges = false %>
+<TABLE width="100%">
     <TR><TD class="bg1" colspan="2"><B>CHANGES</B></TD></TR>
 
-<% 	changeSets.each() { cs_list ->
-      cs_list.each() { cs ->
-		  hadChanges = true %>
-        <TR>
-          <TD colspan="2" class="bg2">&nbsp;&nbsp;Revision <B><%= cs.metaClass.hasProperty('commitId') ? cs.commitId : cs.metaClass.hasProperty('revision') ? cs.revision :
-          cs.metaClass.hasProperty('changeNumber') ? cs.changeNumber : "" %></B> by
+    <% 	changeSets.each() { cs_list ->
+        cs_list.each() { cs ->
+            hadChanges = true %>
+    <TR>
+        <TD colspan="2" class="bg2">&nbsp;&nbsp;Revision <B><%= cs.metaClass.hasProperty('commitId') ? cs.commitId : cs.metaClass.hasProperty('revision') ? cs.revision :
+                cs.metaClass.hasProperty('changeNumber') ? cs.changeNumber : "" %></B> by
             <B><%= cs.author %>: </B>
             <B>(${cs.msgAnnotated})</B>
-           </TD>
-        </TR>
-<%		cs.affectedFiles.each() { p -> %>
-        <TR>
-          <TD width="10%">&nbsp;&nbsp;${p.editType.name}</TD>
-          <TD>${p.path}</TD>
-        </TR>
-<%		}
-	  }
-  }
+        </TD>
+    </TR>
+    <%		cs.affectedFiles.each() { p -> %>
+    <TR>
+        <TD width="10%">&nbsp;&nbsp;${p.editType.name}</TD>
+        <TD>${p.path}</TD>
+    </TR>
+    <%		}
+    }
+    }
 
-	if(!hadChanges) { %>
-        <TR><TD colspan="2">No Changes</TD></TR>
-<%	} %>
-  </TABLE>
+        if(!hadChanges) { %>
+    <TR><TD colspan="2">No Changes</TD></TR>
+    <%	} %>
+</TABLE>
 <BR/>
 <% } %>
 
 <!-- ARTIFACTS -->
 <% def artifacts = build.artifacts
 if(artifacts != null && artifacts.size() > 0) { %>
-  <TABLE width="100%">
+<TABLE width="100%">
     <TR><TD class="bg1"><B>BUILD ARTIFACTS</B></TD></TR>
     <TR>
-      <TD>
-<% 		artifacts.each() { f -> %>
-      	  <li>
-      	    <a href="${rooturl}${build.url}artifact/${f}">${f}</a>
-      	  </li>
-<%		} %>
-      </TD>
+        <TD>
+            <% 		artifacts.each() { f -> %>
+            <li>
+                <a href="${rooturl}${build.url}artifact/${f}">${f}</a>
+            </li>
+            <%		} %>
+        </TD>
     </TR>
-  </TABLE>
+</TABLE>
 <BR/>
 <% } %>
 
 <!-- MAVEN ARTIFACTS -->
 <%
-try {
-  def mbuilds = build.moduleBuilds
-  if(mbuilds != null) { %>
-  <TABLE width="100%">
-      <TR><TD class="bg1"><B>BUILD ARTIFACTS</B></TD></TR>
-<%
     try {
-        mbuilds.each() { m -> %>
-        <TR><TD class="bg2"><B>${m.key.displayName}</B></TD></TR>
-<%		m.value.each() { mvnbld ->
-			def artifactz = mvnbld.artifacts
-			if(artifactz != null && artifactz.size() > 0) { %>
-      <TR>
+        def mbuilds = build.moduleBuilds
+        if(mbuilds != null) { %>
+<TABLE width="100%">
+    <TR><TD class="bg1"><B>BUILD ARTIFACTS</B></TD></TR>
+    <%
+            try {
+                mbuilds.each() { m -> %>
+    <TR><TD class="bg2"><B>${m.key.displayName}</B></TD></TR>
+    <%		m.value.each() { mvnbld ->
+        def artifactz = mvnbld.artifacts
+        if(artifactz != null && artifactz.size() > 0) { %>
+    <TR>
         <TD>
-<%				artifactz.each() { f -> %>
-      	    <li>
-      	      <a href="${rooturl}${mvnbld.url}artifact/${f}">${f}</a>
-      	    </li>
-<%				} %>
-      	</TD>
-      </TR>
-<%			}
-		}
-       }
+            <%				artifactz.each() { f -> %>
+            <li>
+                <a href="${rooturl}${mvnbld.url}artifact/${f}">${f}</a>
+            </li>
+            <%				} %>
+        </TD>
+    </TR>
+    <%			}
+    }
+    }
     } catch(e) {
-	// we don't do anything
+        // we don't do anything
     }  %>
-  </TABLE>
+</TABLE>
 <BR/>
 <% }
 
 }catch(e) {
-	// we don't do anything
+    // we don't do anything
 }
 %>
 
@@ -120,37 +157,55 @@ try {
 
 <% def junitResultList = it.JUnitTestResult
 try {
- def cucumberTestResultAction = it.getAction("org.jenkinsci.plugins.cucumber.jsontestsupport.CucumberTestResultAction")
- junitResultList.add(cucumberTestResultAction.getResult())
+    def cucumberTestResultAction = it.getAction("org.jenkinsci.plugins.cucumber.jsontestsupport.CucumberTestResultAction")
+    junitResultList.add(cucumberTestResultAction.getResult())
 } catch(e) {
-        //cucumberTestResultAction not exist in this build
+    //cucumberTestResultAction not exist in this build
 }
 if (junitResultList.size() > 0) { %>
- <TABLE width="100%">
- <TR><TD class="bg1" colspan="2"><B>${junitResultList.first().displayName}</B></TD></TR>
- <% junitResultList.each{
-  junitResult -> %>
-     <% junitResult.getChildren().each { packageResult -> %>
-        <TR><TD class="bg2" colspan="2"> Name: ${packageResult.getName()} Failed: ${packageResult.getFailCount()} test(s), Passed: ${packageResult.getPassCount()} test(s), Skipped: ${packageResult.getSkipCount()} test(s), Total: ${packageResult.getPassCount()+packageResult.getFailCount()+packageResult.getSkipCount()} test(s)</TD></TR>
-        <% packageResult.getFailedTests().each{ failed_test -> %>
-          <TR bgcolor="white"><TD class="test_failed" colspan="2"><B><li>Failed: ${failed_test.getFullName()} </li></B></TD></TR>
-        <% }
-      }
- } %>
- </TABLE>
- <BR/>
+<TABLE width="100%">
+    <TR><TD class="bg1" colspan="2"><B>${junitResultList.first().displayName}</B></TD></TR>
+    <% junitResultList.each{
+        junitResult -> %>
+    <% junitResult.getChildren().each { packageResult -> %>
+    <TR><TD class="bg2" colspan="2"> Name: ${packageResult.getName()} Failed: ${packageResult.getFailCount()} test(s), Passed: ${packageResult.getPassCount()} test(s), Skipped: ${packageResult.getSkipCount()} test(s), Total: ${packageResult.getPassCount()+packageResult.getFailCount()+packageResult.getSkipCount()} test(s)</TD></TR>
+    <% packageResult.getFailedTests().each{ failed_test -> %>
+    <TR bgcolor="white"><TD class="test_failed" colspan="2"><B><li>Failed: ${failed_test.getFullName()} </li></B></TD></TR>
+    <% }
+    }
+    } %>
+</TABLE>
+<BR/>
 <%
-} %>
+    } %>
 
 <!-- CONSOLE OUTPUT -->
 <% if(build.result==hudson.model.Result.FAILURE) { %>
 <TABLE width="100%" cellpadding="0" cellspacing="0">
-<TR><TD class="bg1"><B>CONSOLE OUTPUT</B></TD></TR>
-<% 	build.getLog(100).each() { line -> %>
-	<TR><TD class="console">${org.apache.commons.lang.StringEscapeUtils.escapeHtml(line)}</TD></TR>
-<% 	} %>
+    <TR><TD class="bg1"><B>CONSOLE OUTPUT</B></TD></TR>
+    <% 	build.getLog(100).each() { line -> %>
+    <TR><TD class="console">${org.apache.commons.lang.StringEscapeUtils.escapeHtml(line)}</TD></TR>
+    <% 	} %>
 </TABLE>
 <BR/>
 <% } %>
+
+<!--
+    find some error message with special char
+    https://groups.google.com/forum/#!topic/jenkinsci-users/TMD3RedSF9A
+-->
+<table border="1">
+<%
+    def rdr= new InputStreamReader(build.getLogInputStream())
+    rdr.eachLine{ it ->
+        if(it.contains("Total")) {
+           def line= hudson.console.ConsoleNote.removeNotes(it)
+%>
+<TR><TD class="console">${line}</TD></TR>
+<%       }
+    }
+%>
+</table>
+
 
 </BODY>

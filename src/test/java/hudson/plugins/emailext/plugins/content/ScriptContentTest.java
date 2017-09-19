@@ -61,8 +61,8 @@ public class ScriptContentTest {
         public void before() throws Throwable {
             super.before();
             Mailbox.clearAll();
-            
-            scriptContent = new ScriptContent();
+
+            ScriptContentTest.this.scriptContent = new ScriptContent();
             listener = StreamTaskListener.fromStdout();
 
             JenkinsLocationConfiguration.get().setUrl("http://localhost");
