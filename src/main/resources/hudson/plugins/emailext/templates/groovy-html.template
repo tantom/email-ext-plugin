@@ -7,8 +7,8 @@ BODY, TABLE, TD, TH, P {
 h1 { color:black; }
 h2 { color:black; }
 h3 { color:black; }
-TD.bg1 { color:white; background-color:#0000C0; font-size:120% }
-TD.bg2 { color:white; background-color:#4040FF; font-size:110% }
+TD.bg1 { color:white; background-color:#283593; font-size:120% }
+TD.bg2 { color:white; background-color:#3f51b5; font-size:110% }
 TD.bg3 { color:white; background-color:#8080FF; }
 TD.test_passed { color:blue; }
 TD.test_failed { color:red; }
@@ -19,6 +19,9 @@ TD.console { font-family:Courier New; }
 <%
     // http://javadoc.jenkins-ci.org/hudson/model/AbstractBuild.html
     //def build = Thread.currentThread().executable
+    //hudson.model.AbstractBuild and hudson.model.AbstractProject
+    hudson.model.AbstractBuild build = (hudson.model.AbstractBuild)build;
+    hudson.model.AbstractProject project = (hudson.model.AbstractProject)project;
     def workspace = build.getEnvVars()["WORKSPACE"]
     def buildName = build.getEnvVars()["JOB_NAME"]
     def buildUrl = build.getEnvVars()["BUILD_URL"]
@@ -28,40 +31,66 @@ TD.console { font-family:Courier New; }
     def archivePath = jobPath + "/archive"
     def logcatPath = archivePath + "/logcat.txt"
 
-    File logcatFile = new File(logcatPath)
-    def logcatTxt = logcatFile.text;
+
 %>
 
-<table border="1">
+<TABLE>
+    <TR><TD valign="center" colspan="6"><B style="font-size: 200%;">BUILD ${build.result ?: 'SUCCESSFUL'}</B></TD></TR>
+    <TR>
+        <TD>URL</TD><TD colspan="5"><A href="${rooturl}${build.url}">${rooturl}${build.url}</A></TD>
+    </TR>
     <tr>
-        <td>var name</td><td>value</td>
+        <TD>Date:</TD><TD>${it.timestampString}</TD>
+        <TD>Duration:</TD><TD>${build.durationString}</TD>
+        <TD>Cause:</TD><TD><% build.causes.each() { cause -> %> ${cause.shortDescription} <%  } %></TD>
+    </TR>
+    <tr><td colspan="6">
+        <%= build %>
+        <%= project %>
+    </td></tr>
+</TABLE>
+<BR/>
+
+
+<%
+    // 需要对success构建的项目才有pmdResult结果,如果构建结果失败不显示
+    def findBugsResult = it.getAction('hudson.plugins.findbugs.FindBugsResultAction')
+    def pmdResult = it.getAction('hudson.plugins.pmd.PmdResultAction')
+    def checkStyleResult = it.getAction('hudson.plugins.checkstyle.CheckStyleResultAction')
+
+    if (findBugsResult!=null) {
+%>
+<table cellpadding=10>
+    <tr>
+        <th></th>
+        <th align=center>Fixed</th>
+        <th align=center>New</th>
+        <th align=center>Total</th>
     </tr>
     <tr>
-        <td>build</td><td>${build}</td>
+        <td>CheckStyle</td>
+        <td align=center>${checkStyleResult.result.numberOfFixedWarnings}</td>
+        <td align=center>${checkStyleResult.result.numberOfNewWarnings}</td>
+        <td align=center>${checkStyleResult.result.numberOfWarnings}</td>
     </tr>
     <tr>
-        <td>jobPath</td><td>${jobPath}</td>
+        <td>FindBugs</td>
+        <td align=center>${findBugsResult.result.numberOfFixedWarnings}</td>
+        <td align=center>${findBugsResult.result.numberOfNewWarnings}</td>
+        <td align=center>${findBugsResult.result.numberOfWarnings}</td>
     </tr>
     <tr>
-        <td>archivePath</td><td>${archivePath}</td>
-    </tr>
-    <tr>
-        <td>logcatTxt</td><td>${logcatTxt}</td>
+        <td>PMD</td>
+        <td align=center>${pmdResult.result.numberOfFixedWarnings}</td>
+        <td align=center>${pmdResult.result.numberOfNewWarnings}</td>
+        <td align=center>${pmdResult.result.numberOfWarnings}</td>
     </tr>
 </table>
 
+<%
+    } // end build success show findbug/pmd/checkstyle result
+%>
 
-
-<TABLE>
-    <TR><TD align="right"><IMG SRC="${rooturl}static/e59dfe28/images/32x32/<%= (build.result == null || build.result.toString() == 'SUCCESS') ? "blue.gif" : build.result.toString() == 'FAILURE' ? 'red.gif' : 'yellow.gif' %>" />
-    </TD><TD valign="center"><B style="font-size: 200%;">BUILD ${build.result ?: 'SUCCESSFUL'}</B></TD></TR>
-    <TR><TD>URL</TD><TD><A href="${rooturl}${build.url}">${rooturl}${build.url}</A></TD></TR>
-    <TR><TD>Project:</TD><TD>${project.name}</TD></TR>
-    <TR><TD>Date:</TD><TD>${it.timestampString}</TD></TR>
-    <TR><TD>Duration:</TD><TD>${build.durationString}</TD></TR>
-    <TR><TD>Cause:</TD><TD><% build.causes.each() { cause -> %> ${cause.shortDescription} <%  } %></TD></TR>
-</TABLE>
-<BR/>
 
 <!-- CHANGE SET -->
 <%
@@ -182,19 +211,92 @@ if (junitResultList.size() > 0) { %>
 <!-- CONSOLE OUTPUT -->
 <% if(build.result==hudson.model.Result.FAILURE) { %>
 <TABLE width="100%" cellpadding="0" cellspacing="0">
-    <TR><TD class="bg1"><B>CONSOLE OUTPUT</B></TD></TR>
+    <TR><TD class="bg1"><B>构建失败日志最后信息</B></TD></TR>
     <% 	build.getLog(100).each() { line -> %>
-    <TR><TD class="console">${org.apache.commons.lang.StringEscapeUtils.escapeHtml(line)}</TD></TR>
+    <TR><TD>${org.apache.commons.lang.StringEscapeUtils.escapeHtml(line)}</TD></TR>
     <% 	} %>
 </TABLE>
 <BR/>
 <% } %>
 
+<%
+
+def keyKnowStrings = "ChimeraModuleLdr|MS_RegisterService|W/GCM-GMS|E/MS_RegisterService|W/dalvikvm|W/Zygote|D/ConnectivityService|E/IntentOperationSvc|E/OneSignal|W/WindowManager" +
+                    "|java.io.IOException: Canceled|E/SQLiteDatabase|D/LeakCanary|libcore.io.ErrnoException|W/Binder|W/InputMethodManagerService|E/CheckinTask|W/Search.RefreshSearchDomainTask" +
+                    "|W/MessageQueue"
+def keyKnows = keyKnowStrings.split("\\|")
+def keyWatchStrings = "CustomActivityOnCrash|BG-Warning|Exception"
+def keyWatchs = keyWatchStrings.split("\\|")
+def keyMoreLineStrings = "java.lang.NullPointerException"
+def keyMoreLines = keyMoreLineStrings.split("\\|")
+
+def isKnowError = { lineText ->
+    for (k in keyKnows) {
+        if (lineText.contains(k))
+            return true;
+    }
+    return false;
+}
+
+def isNeedWatch = { lineText ->
+    for (k in keyWatchs) {
+        if (lineText.contains(k))
+            return true;
+    }
+    return false;
+}
+
+def isMoreLine = { lineText ->
+    for (k in keyMoreLines) {
+        if (lineText.contains(k))
+            return true;
+    }
+    return false;
+}
+%>
+
+<table width="100%">
+    <tr><td class="bg1">Logcat 异常</td></tr>
+    <%
+        // 显示logcat中带有问题的内容
+        // https://stackoverflow.com/questions/29393956/write-groovy-email-template-to-display-parsed-build-errors-in-email-body
+        File logcatFile = new File(logcatPath)
+        def logcatLineNo = 1
+        def logcatLineTxt
+        def continueLine = 0; // 某些异常需要持续显示后面几行
+        logcatFile.withReader { reader ->
+            while ((logcatLineTxt = reader.readLine())!=null) {
+                logcatLineNo++
+
+                if (continueLine>0) {
+                    continueLine--
+                    print("<tr><td>${logcatLineNo}. ${logcatLineTxt}</td></tr>")
+                    continue
+                }
+
+                def isKnow = isKnowError(logcatLineTxt)
+                def isWatch = isNeedWatch(logcatLineTxt)
+                def isMore = isMoreLine(logcatLineTxt)
+
+                if (isWatch && !isKnow) {
+                    if (isMore)
+                        continueLine += 3
+                    print("<tr><td>${logcatLineNo}. ${logcatLineTxt}</td></tr>")
+                }
+            }
+        }
+    %>
+</table>
+
+
+
+
 <!--
     find some error message with special char
     https://groups.google.com/forum/#!topic/jenkinsci-users/TMD3RedSF9A
 -->
-<table border="1">
+<table >
+    <tr><td class="bg1">构建日志异常</td></tr>
 <%
     def rdr= new InputStreamReader(build.getLogInputStream())
     rdr.eachLine{ it ->
