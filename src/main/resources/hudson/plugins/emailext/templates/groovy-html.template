@@ -7,12 +7,13 @@ BODY, TABLE, TD, TH, P {
 h1 { color:black; }
 h2 { color:black; }
 h3 { color:black; }
-TD.bg1 { color:white; background-color:#283593; font-size:120% }
-TD.bg2 { color:white; background-color:#3f51b5; font-size:110% }
-TD.bg3 { color:white; background-color:#8080FF; }
+TD.bg1 { color:white !important; background-color:#283593; font-size:120% ;padding: 10px}
+TD.bg2 { color:black !important; background-color:#f3f3f3; font-size:110% ;padding: 10px }
+TD.bg3 { color:white !important; background-color:#8080FF;  padding: 10px}
 TD.test_passed { color:blue; }
 TD.test_failed { color:red; }
 TD.console { font-family:Courier New; }
+
 </STYLE>
 <BODY>
 
@@ -30,12 +31,16 @@ TD.console { font-family:Courier New; }
     def jobPath = jenkinsHome + "/jobs/" + buildName + "/builds/" + buildNum
     def archivePath = jobPath + "/archive"
     def logcatPath = archivePath + "/logcat.txt"
-
-
+    def isBuildSuccess = build.result.toString() == 'SUCCESS'
+    def topTitleColor = isBuildSuccess?"green":"red"
+    def linkPmd = rooturl + build.url + "pmdResult"
+    def linkFindbugs = rooturl + build.url + "findbugsResult"
+    def linkCheckstyle = rooturl + build.url + "checkstyleResult"
+    def linkConsole = rooturl + build.url + "console"
 %>
 
 <TABLE>
-    <TR><TD valign="center" colspan="6"><B style="font-size: 200%;">BUILD ${build.result ?: 'SUCCESSFUL'}</B></TD></TR>
+    <TR><TD valign="center" colspan="6"><B style="font-size: 200%;color: <%=topTitleColor%>">BUILD ${build.result ?: 'SUCCESSFUL'}</B></TD></TR>
     <TR>
         <TD>URL</TD><TD colspan="5"><A href="${rooturl}${build.url}">${rooturl}${build.url}</A></TD>
     </TR>
@@ -46,7 +51,6 @@ TD.console { font-family:Courier New; }
     </TR>
     <tr><td colspan="6">
         <%= build %>
-        <%= project %>
     </td></tr>
 </TABLE>
 <BR/>
@@ -68,69 +72,62 @@ TD.console { font-family:Courier New; }
         <th align=center>Total</th>
     </tr>
     <tr>
-        <td>CheckStyle</td>
+        <td><a href="${linkCheckstyle}">CheckStyle</a></td>
         <td align=center>${checkStyleResult.result.numberOfFixedWarnings}</td>
         <td align=center>${checkStyleResult.result.numberOfNewWarnings}</td>
         <td align=center>${checkStyleResult.result.numberOfWarnings}</td>
     </tr>
     <tr>
-        <td>FindBugs</td>
+        <td><a href="${linkFindbugs}">FindBugs</a></td>
         <td align=center>${findBugsResult.result.numberOfFixedWarnings}</td>
         <td align=center>${findBugsResult.result.numberOfNewWarnings}</td>
         <td align=center>${findBugsResult.result.numberOfWarnings}</td>
     </tr>
     <tr>
-        <td>PMD</td>
+        <td><a href="${linkPmd}">PMD</a></td>
         <td align=center>${pmdResult.result.numberOfFixedWarnings}</td>
         <td align=center>${pmdResult.result.numberOfNewWarnings}</td>
         <td align=center>${pmdResult.result.numberOfWarnings}</td>
     </tr>
 </table>
-
+<BR/>
 <%
     } // end build success show findbug/pmd/checkstyle result
 %>
 
-
-<!-- CHANGE SET -->
-<%
-    def changeSets = build.changeSets
-    if(changeSets != null) {
-        def hadChanges = false %>
 <TABLE width="100%">
-    <TR><TD class="bg1" colspan="2"><B>CHANGES</B></TD></TR>
-
-    <% 	changeSets.each() { cs_list ->
-        cs_list.each() { cs ->
-            hadChanges = true %>
-    <TR>
-        <TD colspan="2" class="bg2">&nbsp;&nbsp;Revision <B><%= cs.metaClass.hasProperty('commitId') ? cs.commitId : cs.metaClass.hasProperty('revision') ? cs.revision :
-                cs.metaClass.hasProperty('changeNumber') ? cs.changeNumber : "" %></B> by
-            <B><%= cs.author %>: </B>
-            <B>(${cs.msgAnnotated})</B>
-        </TD>
-    </TR>
-    <%		cs.affectedFiles.each() { p -> %>
-    <TR>
-        <TD width="10%">&nbsp;&nbsp;${p.editType.name}</TD>
-        <TD>${p.path}</TD>
-    </TR>
-    <%		}
-    }
-    }
-
-        if(!hadChanges) { %>
-    <TR><TD colspan="2">No Changes</TD></TR>
-    <%	} %>
+    <%
+        def junitResultList = it.JUnitTestResult
+        if (junitResultList.size() > 0) {
+    %>
+    <TR><TD class="bg1" colspan="2"><B>JUnit Tests</B></TD></TR>
+        <%
+                it.JUnitTestResult.each { junitResult ->
+                junitResult.getChildren().each { packageResult ->
+        %>
+        <TR><TD class="bg2" colspan="2">
+    Name: ${packageResult.getName()} Failed: ${packageResult.getFailCount()} test(s), Passed: ${packageResult.getPassCount()} test(s),
+    Skipped: ${packageResult.getSkipCount()} test(s), Total: ${packageResult.getPassCount() + packageResult.getFailCount() + packageResult.getSkipCount()} test(s)
+        </TD></TR>
+    <%
+            packageResult.getFailedTests().each { failed_test ->
+    %>
+        <TR bgcolor="white"><TD class="test_failed" colspan="2"><B><li>Failed: ${failed_test.getFullName()}</li></B></TD></TR>
+    <%
+                            }
+                }
+            }
+        }
+    %>
 </TABLE>
 <BR/>
-<% } %>
+
 
 <!-- ARTIFACTS -->
 <% def artifacts = build.artifacts
 if(artifacts != null && artifacts.size() > 0) { %>
 <TABLE width="100%">
-    <TR><TD class="bg1"><B>BUILD ARTIFACTS</B></TD></TR>
+    <TR><TD class="bg1">BUILD ARTIFACTS</TD></TR>
     <TR>
         <TD>
             <% 		artifacts.each() { f -> %>
@@ -182,36 +179,10 @@ if(artifacts != null && artifacts.size() > 0) { %>
 }
 %>
 
-<!-- JUnit TEMPLATE -->
-
-<% def junitResultList = it.JUnitTestResult
-try {
-    def cucumberTestResultAction = it.getAction("org.jenkinsci.plugins.cucumber.jsontestsupport.CucumberTestResultAction")
-    junitResultList.add(cucumberTestResultAction.getResult())
-} catch(e) {
-    //cucumberTestResultAction not exist in this build
-}
-if (junitResultList.size() > 0) { %>
-<TABLE width="100%">
-    <TR><TD class="bg1" colspan="2"><B>${junitResultList.first().displayName}</B></TD></TR>
-    <% junitResultList.each{
-        junitResult -> %>
-    <% junitResult.getChildren().each { packageResult -> %>
-    <TR><TD class="bg2" colspan="2"> Name: ${packageResult.getName()} Failed: ${packageResult.getFailCount()} test(s), Passed: ${packageResult.getPassCount()} test(s), Skipped: ${packageResult.getSkipCount()} test(s), Total: ${packageResult.getPassCount()+packageResult.getFailCount()+packageResult.getSkipCount()} test(s)</TD></TR>
-    <% packageResult.getFailedTests().each{ failed_test -> %>
-    <TR bgcolor="white"><TD class="test_failed" colspan="2"><B><li>Failed: ${failed_test.getFullName()} </li></B></TD></TR>
-    <% }
-    }
-    } %>
-</TABLE>
-<BR/>
-<%
-    } %>
-
 <!-- CONSOLE OUTPUT -->
 <% if(build.result==hudson.model.Result.FAILURE) { %>
 <TABLE width="100%" cellpadding="0" cellspacing="0">
-    <TR><TD class="bg1"><B>构建失败日志最后信息</B></TD></TR>
+    <TR><TD class="bg1">构建失败日志最后信息</TD></TR>
     <% 	build.getLog(100).each() { line -> %>
     <TR><TD>${org.apache.commons.lang.StringEscapeUtils.escapeHtml(line)}</TD></TR>
     <% 	} %>
@@ -223,11 +194,11 @@ if (junitResultList.size() > 0) { %>
 
 def keyKnowStrings = "ChimeraModuleLdr|MS_RegisterService|W/GCM-GMS|E/MS_RegisterService|W/dalvikvm|W/Zygote|D/ConnectivityService|E/IntentOperationSvc|E/OneSignal|W/WindowManager" +
                     "|java.io.IOException: Canceled|E/SQLiteDatabase|D/LeakCanary|libcore.io.ErrnoException|W/Binder|W/InputMethodManagerService|E/CheckinTask|W/Search.RefreshSearchDomainTask" +
-                    "|W/MessageQueue"
+                    "|W/MessageQueue|android.media.UnsupportedSchemeException|java.io.IOException: Invalid device key response|IOException while requesting key|java.net.UnknownHostException"
 def keyKnows = keyKnowStrings.split("\\|")
 def keyWatchStrings = "CustomActivityOnCrash|BG-Warning|Exception"
 def keyWatchs = keyWatchStrings.split("\\|")
-def keyMoreLineStrings = "java.lang.NullPointerException"
+def keyMoreLineStrings = "java.lang.NullPointerException|java.io.IOException"
 def keyMoreLines = keyMoreLineStrings.split("\\|")
 
 def isKnowError = { lineText ->
@@ -261,33 +232,36 @@ def isMoreLine = { lineText ->
         // 显示logcat中带有问题的内容
         // https://stackoverflow.com/questions/29393956/write-groovy-email-template-to-display-parsed-build-errors-in-email-body
         File logcatFile = new File(logcatPath)
-        def logcatLineNo = 1
-        def logcatLineTxt
-        def continueLine = 0; // 某些异常需要持续显示后面几行
-        logcatFile.withReader { reader ->
-            while ((logcatLineTxt = reader.readLine())!=null) {
-                logcatLineNo++
+        if (file.exists()) {
+            def logcatLineNo = 1
+            def logcatLineTxt
+            def continueLine = 0; // 某些异常需要持续显示后面几行
+            logcatFile.withReader { reader ->
+                while ((logcatLineTxt = reader.readLine())!=null) {
+                    logcatLineNo++
 
-                if (continueLine>0) {
-                    continueLine--
-                    print("<tr><td>${logcatLineNo}. ${logcatLineTxt}</td></tr>")
-                    continue
-                }
+                    if (continueLine>0) {
+                        continueLine--
+                        print("<tr><td>${logcatLineNo}. ${logcatLineTxt}</td></tr>")
+                        continue
+                    }
 
-                def isKnow = isKnowError(logcatLineTxt)
-                def isWatch = isNeedWatch(logcatLineTxt)
-                def isMore = isMoreLine(logcatLineTxt)
+                    def isKnow = isKnowError(logcatLineTxt)
+                    def isWatch = isNeedWatch(logcatLineTxt)
+                    def isMore = isMoreLine(logcatLineTxt)
 
-                if (isWatch && !isKnow) {
-                    if (isMore)
-                        continueLine += 3
-                    print("<tr><td>${logcatLineNo}. ${logcatLineTxt}</td></tr>")
+                    if (isWatch && !isKnow) {
+                        if (isMore)
+                            continueLine += 3
+                        print("<tr><td>${logcatLineNo}. ${logcatLineTxt}</td></tr>")
+                    }
                 }
             }
         }
+
     %>
 </table>
-
+<BR/>
 
 
 
@@ -295,19 +269,77 @@ def isMoreLine = { lineText ->
     find some error message with special char
     https://groups.google.com/forum/#!topic/jenkinsci-users/TMD3RedSF9A
 -->
-<table >
-    <tr><td class="bg1">构建日志异常</td></tr>
+<table width="100%">
+    <tr><td class="bg1"><a href="${linkConsole}" style="color: white !important;">构建日志异常</a></td></tr>
 <%
     def rdr= new InputStreamReader(build.getLogInputStream())
     rdr.eachLine{ it ->
-        if(it.contains("Total")) {
-           def line= hudson.console.ConsoleNote.removeNotes(it)
-%>
-<TR><TD class="console">${line}</TD></TR>
-<%       }
+        boolean isShowLine = false;
+        String link = "";
+        if (it.contains("PMD rule violations")) {
+            isShowLine = true;
+            link = linkPmd
+        }
+        if (it.contains("Checkstyle rule violations")) {
+            isShowLine = true;
+            link = linkCheckstyle
+        }
+        if (it.contains("FindBugs rule violations")) {
+            isShowLine = true;
+            link = linkFindbugs
+        }
+
+        if (it.contains("Detected failures in monkey output")) {
+            isShowLine = true;
+        }
+
+        if(isShowLine) {
+            def line= hudson.console.ConsoleNote.removeNotes(it)
+            if (link?.trim()) {
+                print("<TR><TD ><a href=${link}>${line}</a></TD></TR>")
+            }else {
+                print("<TR><TD >${line}</TD></TR>")
+            }
+       }
     }
 %>
 </table>
+<BR/>
+
+
+<!-- CHANGE SET -->
+<%
+    def changeSets = build.changeSets
+    if(changeSets != null) {
+        def hadChanges = false %>
+<TABLE width="100%">
+    <TR><TD class="bg1" colspan="2">CHANGES</TD></TR>
+
+    <% 	changeSets.each() { cs_list ->
+        cs_list.each() { cs ->
+            hadChanges = true %>
+    <TR>
+        <TD colspan="2" class="bg2">&nbsp;&nbsp;Revision <%= cs.metaClass.hasProperty('commitId') ? cs.commitId : cs.metaClass.hasProperty('revision') ? cs.revision :
+                cs.metaClass.hasProperty('changeNumber') ? cs.changeNumber : "" %> by
+            <%= cs.author %>:
+            (${cs.msgAnnotated})
+        </TD>
+    </TR>
+    <%		cs.affectedFiles.each() { p -> %>
+    <TR>
+        <TD width="10%">&nbsp;&nbsp;${p.editType.name}</TD>
+        <TD>${p.path}</TD>
+    </TR>
+    <%		}
+    }
+    }
+
+        if(!hadChanges) { %>
+    <TR><TD colspan="2">No Changes</TD></TR>
+    <%	} %>
+</TABLE>
+<BR/>
+<% } %>
 
 
 </BODY>
