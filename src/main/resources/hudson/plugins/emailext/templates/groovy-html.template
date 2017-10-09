@@ -42,16 +42,13 @@ TD.console { font-family:Courier New; }
 <TABLE>
     <TR><TD valign="center" colspan="6"><B style="font-size: 200%;color: <%=topTitleColor%>">BUILD ${build.result ?: 'SUCCESSFUL'}</B></TD></TR>
     <TR>
-        <TD>URL</TD><TD colspan="5"><A href="${rooturl}${build.url}">${rooturl}${build.url}</A></TD>
+        <TD><b>URL</b></TD><TD colspan="5"><A href="${rooturl}${build.url}">${rooturl}${build.url}</A></TD>
     </TR>
     <tr>
-        <TD>Date:</TD><TD>${it.timestampString}</TD>
-        <TD>Duration:</TD><TD>${build.durationString}</TD>
-        <TD>Cause:</TD><TD><% build.causes.each() { cause -> %> ${cause.shortDescription} <%  } %></TD>
+        <TD><b>Date</b></TD><TD>${it.timestampString}</TD>
+        <TD><b>Duration</b></TD><TD>${build.durationString}</TD>
+        <TD><b>Cause</b></TD><TD><% build.causes.each() { cause -> %> ${cause.shortDescription} <%  } %></TD>
     </TR>
-    <tr><td colspan="6">
-        <%= build %>
-    </td></tr>
 </TABLE>
 <BR/>
 
@@ -61,6 +58,7 @@ TD.console { font-family:Courier New; }
     def findBugsResult = it.getAction('hudson.plugins.findbugs.FindBugsResultAction')
     def pmdResult = it.getAction('hudson.plugins.pmd.PmdResultAction')
     def checkStyleResult = it.getAction('hudson.plugins.checkstyle.CheckStyleResultAction')
+    def junitResultList = it.getAction('hudson.tasks.junit.TestResultAction')
 
     if (findBugsResult!=null) {
 %>
@@ -95,28 +93,29 @@ TD.console { font-family:Courier New; }
     } // end build success show findbug/pmd/checkstyle result
 %>
 
+
 <TABLE width="100%">
     <%
-        def junitResultList = it.JUnitTestResult
-        if (junitResultList.size() > 0) {
+        if (junitResultList!=null) {
+            def testTotal = junitResultList.getTotalCount()
+            def testFailed = junitResultList.getFailCount()
+            def testSkipped = junitResultList.getSkipCount()
+            def testPassed = testTotal - testFailed - testSkipped
+            def failedTestsString = ""
+            def failedTests = junitResultList.getFailedTests()
+
+            if (failedTests.size() > 9) {
+                failedTests = failedTests.subList(0, 8)
+            }
+
+            for (hudson.tasks.junit.CaseResult cr : failedTests) {
+                failedTestsString = failedTestsString + cr.getFullDisplayName() + ":" + cr.getErrorDetails();
+            }
     %>
     <TR><TD class="bg1" colspan="2"><B>JUnit Tests</B></TD></TR>
-        <%
-                it.JUnitTestResult.each { junitResult ->
-                junitResult.getChildren().each { packageResult ->
-        %>
-        <TR><TD class="bg2" colspan="2">
-    Name: ${packageResult.getName()} Failed: ${packageResult.getFailCount()} test(s), Passed: ${packageResult.getPassCount()} test(s),
-    Skipped: ${packageResult.getSkipCount()} test(s), Total: ${packageResult.getPassCount() + packageResult.getFailCount() + packageResult.getSkipCount()} test(s)
-        </TD></TR>
+    <TR><TD colspan="2">Total:<%=testTotal%> Fail:<%=testFailed%> Skip:<%=testSkipped%> Passed:<%=testPassed%></TD></TR>
+    <tr><td colspan="2"><%=failedTestsString%></td></tr>
     <%
-            packageResult.getFailedTests().each { failed_test ->
-    %>
-        <TR bgcolor="white"><TD class="test_failed" colspan="2"><B><li>Failed: ${failed_test.getFullName()}</li></B></TD></TR>
-    <%
-                            }
-                }
-            }
         }
     %>
 </TABLE>
@@ -194,11 +193,12 @@ if(artifacts != null && artifacts.size() > 0) { %>
 
 def keyKnowStrings = "ChimeraModuleLdr|MS_RegisterService|W/GCM-GMS|E/MS_RegisterService|W/dalvikvm|W/Zygote|D/ConnectivityService|E/IntentOperationSvc|E/OneSignal|W/WindowManager" +
                     "|java.io.IOException: Canceled|E/SQLiteDatabase|D/LeakCanary|libcore.io.ErrnoException|W/Binder|W/InputMethodManagerService|E/CheckinTask|W/Search.RefreshSearchDomainTask" +
-                    "|W/MessageQueue|android.media.UnsupportedSchemeException|java.io.IOException: Invalid device key response|IOException while requesting key|java.net.UnknownHostException"
+                    "|W/MessageQueue|android.media.UnsupportedSchemeException|java.io.IOException: Invalid device key response|IOException while requesting key|java.net.UnknownHostException" +
+                    "|www.googleapis.com|failed to connect to www.google.com|Search.NetworkImageLoader|W/PackageManager|E/CameraHolder|cloudconfig.googleapis.com|E/ChromeSync"
 def keyKnows = keyKnowStrings.split("\\|")
 def keyWatchStrings = "CustomActivityOnCrash|BG-Warning|Exception"
 def keyWatchs = keyWatchStrings.split("\\|")
-def keyMoreLineStrings = "java.lang.NullPointerException|java.io.IOException"
+def keyMoreLineStrings = "java.lang.NullPointerException|java.io.IOException|has leaked:"
 def keyMoreLines = keyMoreLineStrings.split("\\|")
 
 def isKnowError = { lineText ->
@@ -232,7 +232,7 @@ def isMoreLine = { lineText ->
         // 显示logcat中带有问题的内容
         // https://stackoverflow.com/questions/29393956/write-groovy-email-template-to-display-parsed-build-errors-in-email-body
         File logcatFile = new File(logcatPath)
-        if (file.exists()) {
+        if (logcatFile.exists()) {
             def logcatLineNo = 1
             def logcatLineTxt
             def continueLine = 0; // 某些异常需要持续显示后面几行
@@ -290,6 +290,10 @@ def isMoreLine = { lineText ->
         }
 
         if (it.contains("Detected failures in monkey output")) {
+            isShowLine = true;
+        }
+
+        if (it.contains("There were failing tests")) {
             isShowLine = true;
         }
 
